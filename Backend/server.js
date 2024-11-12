@@ -11,8 +11,9 @@ const cors = require('cors');
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// การเชื่อมต่อกับฐานข้อมูล MySQL
+
 const db = mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -25,16 +26,22 @@ db.connect(err => {
     console.log('Connected to database');
 });
 
-// ตรวจสอบว่าโฟลเดอร์ uploads มีอยู่หรือไม่ ถ้าไม่มีให้สร้าง
 const uploadDir = 'uploads';
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
 }
 
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadDir), // ใช้ path ถูกต้อง
-    filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => {
+        const timestamp = Date.now();
+        // แทนที่ช่องว่างและเครื่องหมาย / ด้วย _
+        const sanitizedName = file.originalname.replace(/\s+/g, '_').replace(/\//g, '_');
+        cb(null, `${timestamp}-${sanitizedName}`);
+    }
 });
+
+
 
 const upload = multer({
     storage,
@@ -85,7 +92,7 @@ app.put('/members/:id', upload.single('profileImage'), (req, res) => {
     const { title, firstName, lastName, birthdate } = req.body;
     const profileImageUrl = req.file ? req.file.path : null;
 
-    // ถ้าทุกข์ไม่ได้อัปโหลดไฟล์ใหม่ ให้ดึง URL รูปภาพจากฐานข้อมูล
+    // ถ้าไม่ได้อัปโหลดไฟล์ใหม่ ให้ดึง URL รูปภาพจากฐานข้อมูล
     const selectQuery = `SELECT profile_image_url FROM members WHERE id = ?`;
     db.query(selectQuery, [id], (err, result) => {
         if (err) {

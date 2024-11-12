@@ -1,8 +1,5 @@
-// ติดตั้ง React และ library ที่ต้องใช้: 
-// npm install react-router-dom axios
-
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
+import { useParams ,BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
 import axios from 'axios';
 
 const API_URL = 'http://localhost:3001';
@@ -46,35 +43,44 @@ function MemberForm({ onSubmit, memberData }) {
 }
 
 function MemberList() {
-    const [members, setMembers] = useState([]);
+  const [members, setMembers] = useState([]);
 
-    useEffect(() => {
-        axios.get(`${API_URL}/members`).then((response) => {
-            setMembers(response.data);
-        });
-    }, []);
+  useEffect(() => {
+      axios.get(`${API_URL}/members`).then((response) => {
+          setMembers(response.data);
+      });
+  }, []);
 
-    return (
-        <div>
-            <h2>รายชื่อสมาชิก</h2>
-            <ul>
-                {members.map((member) => (
-                    <li key={member.id}>
-                        {member.title} {member.first_name} {member.last_name} - อายุ: {member.age}
-                        <Link to={`/edit/${member.id}`}> แก้ไข</Link>
-                        <button onClick={() => handleDelete(member.id)}>ลบ</button>
-                    </li>
-                ))}
-            </ul>
-        </div>
-    );
+  return (
+      <div>
+          <h2>รายชื่อสมาชิก</h2>
+          <ul>
+              {members.map((member) => (
+                  <li key={member.id}>
+                      {member.title} {member.first_name} {member.last_name} - อายุ: {member.age}
+                      {member.profile_image_url && (
+    <img
+        src={`http://localhost:3001/${member.profile_image_url}`}
+        alt={`${member.first_name} ${member.last_name}`}
+        style={{ width: '100px', height: '100px', objectFit: 'cover' }}
+    />
+)}
 
-    function handleDelete(id) {
-        axios.delete(`${API_URL}/members/${id}`).then(() => {
-            setMembers(members.filter((m) => m.id !== id));
-        });
-    }
+                      <Link to={`/edit/${member.id}`}> แก้ไข</Link>
+                      <button onClick={() => handleDelete(member.id)}>ลบ</button>
+                  </li>
+              ))}
+          </ul>
+      </div>
+  );
+
+  function handleDelete(id) {
+      axios.delete(`${API_URL}/members/${id}`).then(() => {
+          setMembers(members.filter((m) => m.id !== id));
+      });
+  }
 }
+
 
 function AddMember() {
     const handleSubmit = (formData) => {
@@ -94,33 +100,50 @@ function AddMember() {
     );
 }
 
-function EditMember({ memberId }) {
-    const [memberData, setMemberData] = useState(null);
+function EditMember() {
+  const { id: memberId } = useParams(); // ใช้ useParams เพื่อดึง memberId จาก URL
+  const [memberData, setMemberData] = useState(null);
 
-    useEffect(() => {
-        axios.get(`${API_URL}/members/${memberId}`)
-            .then((response) => setMemberData(response.data))
-            .catch((error) => console.error(error));
-    }, [memberId]);
+  useEffect(() => {
+      if (memberId) { // ตรวจสอบว่า memberId ไม่เป็น undefined
+          axios.get(`${API_URL}/members/${memberId}`)
+              .then((response) => setMemberData(response.data))
+              .catch((error) => {
+                  console.error(error);
+                  alert('ไม่สามารถดึงข้อมูลสมาชิกได้');
+              });
+      } else {
+          console.error('Member ID is undefined');
+          alert('ไม่พบข้อมูลสมาชิก');
+      }
+  }, [memberId]);
 
-    const handleSubmit = (formData) => {
-        const data = new FormData();
-        Object.keys(formData).forEach((key) => data.append(key, formData[key]));
+  const handleSubmit = (formData) => {
+      const data = new FormData();
+      Object.keys(formData).forEach((key) => data.append(key, formData[key]));
 
-        axios.put(`${API_URL}/members/${memberId}`, data)
-            .then(() => window.location = '/')
-            .catch((error) => console.error(error));
-    };
+      axios.put(`${API_URL}/members/${memberId}`, data)
+          .then(() => window.location = '/')
+          .catch((error) => console.error(error));
+  };
 
-    if (!memberData) return <p>Loading...</p>;
+  if (!memberData) return <p>Loading...</p>;
 
-    return (
-        <div>
-            <h2>แก้ไขข้อมูลสมาชิก</h2>
-            <MemberForm onSubmit={handleSubmit} memberData={memberData} />
-        </div>
-    );
+  return (
+      <div>
+          <h2>แก้ไขข้อมูลสมาชิก</h2>
+          {memberData.profile_image_url && (
+              <img
+                  src={`${API_URL}/${memberData.profile_image_url}`}
+                  alt={`${memberData.first_name} ${memberData.last_name}`}
+                  style={{ width: '100px', height: '100px', objectFit: 'cover' }}
+              />
+          )}
+          <MemberForm onSubmit={handleSubmit} memberData={memberData} />
+      </div>
+  );
 }
+
 
 function App() {
     return (
